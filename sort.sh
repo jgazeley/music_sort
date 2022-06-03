@@ -45,20 +45,20 @@ function meta {
 	input="$directory/$1"
 	metaflac --export-tags-to=/mnt/d/desktop/tmp/tags.txt "$input"
 
-	artist=$(grep ^ARTIST= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
+	artist=$(grep -i ^ARTIST= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
 
-	track=$(grep ^TRACKNUMBER= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
+	track=$(grep -i ^TRACKNUMBER= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
 
 		if [[ $track =~ ^0[123456789]* ]]; then
 			track=${track:1} 
 		fi
 
-	title=$(grep ^TITLE= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
+	title=$(grep -i ^TITLE= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
 		title=$(capitals $title)
 
-	album=$(grep ^ALBUM= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
-	year=$(grep ^DATE= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
-	genre=$(grep ^GENRE= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
+	album=$(grep -i ^ALBUM= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
+	year=$(grep -i ^DATE= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
+	genre=$(grep -i ^GENRE= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
 	format=$(exiftool "$input" | grep "File Type Extension" | cut -f2 -d: | cut -f2 -d\ )
 	
 	metaflac --remove-all-tags "$input"
@@ -79,8 +79,9 @@ function meta {
 		track=0$track 
 	fi
 
-	# Replace '?' with '-' in file names
+	# Replace special characters with '-' in file names
 	title=$(echo $title | sed 's/\?/\-/')
+	title=$(echo $title | sed 's/\:/\-/')
 
 	# File names are formatted as 'nn. title.flac'
 	filename=$(echo $track\. $title\.$format)
