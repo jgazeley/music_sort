@@ -40,7 +40,7 @@ function capitals {
 	echo $title
 }
 
-# Creates variables with metadata for ARTIST, ALBUM, YEAR, TITLE, and TRACKNUMBER
+# Creates variables with metadata for ARTIST, ALBUM, DATE, GENRE, TITLE, and TRACKNUMBER
 function meta {
 	input="$directory/$1"
 	metaflac --export-tags-to=/mnt/d/desktop/tmp/tags.txt "$input"
@@ -68,8 +68,6 @@ function meta {
 	metaflac --set-tag="DATE=$year" "$input"
 	metaflac --set-tag="TITLE=$title" "$input"
 	metaflac --set-tag="TRACKNUMBER=$track" "$input"
-
-# Format for file name
 
 	# Artists with "The" in the name are reformatted to "Bandname, The"
 	if [[ "$artist" =~ ^"The " ]]; then
