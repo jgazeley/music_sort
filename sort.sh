@@ -1,5 +1,5 @@
 # Working directory
-directory="/mnt/d/desktop/filter"
+directory="/mnt/d/desktop/sort"
 
 # Music Library directory
 music="/mnt/e"
@@ -40,6 +40,41 @@ function capitals {
 	echo $title
 }
 
+function capitals2 {
+	for argument; do
+		case $1 in
+			In) album=$(echo $album | sed 's/\ In\ /\ in\ /')
+			;;
+			Is) album=$(echo $album | sed 's/\ Is\ /\ is\ /')
+			;;
+			The) album=$(echo $album | sed 's/\ The\ /\ the\ /')
+			;;
+			With) album=$(echo $album | sed 's/\ With\ /\ with\ /')
+			;;
+			A) album=$(echo $album | sed 's/\ A\ /\ a\ /')
+			;;
+			As) album=$(echo $album | sed 's/\ As\ /\ as\ /')
+			;;
+			And) album=$(echo $album | sed 's/\ And\ /\ and\ /')
+			;;
+			For) album=$(echo $album | sed 's/\ For\ /\ for\ /')
+			;;
+			From) album=$(echo $album | sed 's/\ From\ /\ from\ /')
+			;;
+			To) album=$(echo $album | sed 's/\ To\ /\ to\ /')
+			;;
+			Or) album=$(echo $album | sed 's/\ Or\ /\ or\ /')
+			;;
+			Of) album=$(echo $album | sed 's/\ Of\ /\ of\ /')
+			;;
+			On) album=$(echo $album | sed 's/\ On\ /\ on\ /')
+			;;
+		esac
+	shift
+	done
+	echo $album
+}
+
 # Creates variables with metadata for ARTIST, ALBUM, DATE, GENRE, TITLE, and TRACKNUMBER
 function meta {
 	input="$directory/$1"
@@ -53,10 +88,18 @@ function meta {
 			track=${track:1} 
 		fi
 
+	total=$(grep -i ^TOTALTRACKS= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
+
+		if [[ $total =~ ^0[123456789]* ]]; then
+			total=${total:1} 
+		fi
+
 	title=$(grep -i ^TITLE= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
 		title=$(capitals $title)
 
 	album=$(grep -i ^ALBUM= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
+		album=$(capitals2 $album)
+		
 	year=$(grep -i ^DATE= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
 	genre=$(grep -i ^GENRE= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
 	format=$(exiftool "$input" | grep "File Type Extension" | cut -f2 -d: | cut -f2 -d\ )
@@ -68,6 +111,7 @@ function meta {
 	metaflac --set-tag="DATE=$year" "$input"
 	metaflac --set-tag="TITLE=$title" "$input"
 	metaflac --set-tag="TRACKNUMBER=$track" "$input"
+	metaflac --set-tag="TOTALTRACKS=$total" "$input"
 
 	# Artists with "The" in the name are reformatted to "Bandname, The"
 	if [[ "$artist" =~ ^"The " ]]; then
@@ -80,8 +124,7 @@ function meta {
 	fi
 
 	# Replace special characters with '-' in file names
-	title=$(echo $title | sed 's/\?/\-/')
-	title=$(echo $title | sed 's/\:/\-/')
+	title=$(echo $title | sed 's/[\/:*?"<>|]/\-/g')
 
 	# File names are formatted as 'nn. title.flac'
 	filename=$(echo $track\. $title\.$format)
@@ -100,12 +143,13 @@ for argument; do
 
 		# Display files in working directory:
 		# filenames and ARTIST -  ALBUM - YEAR
-		test)
+		list)
 			while read list; do
 				meta "$list"
 				echo $filename
+				echo $artist - $album - $year
+				echo
 			done < /mnt/d/desktop/tmp/list.txt
-			echo $artist - $album - $year
 		;;
 
 		meta)
@@ -122,26 +166,46 @@ for argument; do
 		# ex: sort.sh -album "Pet Sounds"
 		\-album)
 			val=$2
-			while read list; do
-				metaflac --remove-tag=ALBUM "$directory/$list"
-				metaflac --set-tag="ALBUM=$val" "$directory/$list"
-			done < /mnt/d/desktop/tmp/list.txt
+			metaflac --remove-tag=ALBUM $directory/*.flac
+			metaflac --set-tag="ALBUM=$val" $directory/*.flac
 		;;
 
 		# Change ARTIST for entire working directory to argument
 		# ex: sort.sh -artist "Thelonious Monk"
 		\-artist)
 			val=$2
-			while read list; do
-				metaflac --remove-tag=ARTIST "$directory/$list"
-				metaflac --set-tag="ARTIST=$val" "$directory/$list"
-			done < /mnt/d/desktop/tmp/list.txt
+			metaflac --remove-tag=ARTIST $directory/*.flac
+			metaflac --set-tag="ARTIST=$val" $directory/*.flac
+		;;
+
+		# Change GENRE for entire working directory to argument
+		# ex: sort.sh -genre "Jazz"
+		\-genre)
+			val=$2
+			metaflac --remove-tag=GENRE $directory/*.flac
+			metaflac --set-tag="GENRE=$val" $directory/*.flac
+		;;
+
+		# Change DATE for entire working directory to argument
+		# ex: sort.sh -genre "1969"
+		\-date)
+			val=$2
+			metaflac --remove-tag=DATE $directory/*.flac
+			metaflac --set-tag="DATE=$val" $directory/*.flac
+		;;
+
+		# Change TOTALTRACKS for entire working directory to argument
+		# ex: sort.sh -genre 12
+		\-total)
+			val=$2
+			metaflac --remove-tag=TOTALTRACKS $directory/*.flac
+			metaflac --set-tag="TOTALTRACKS=$val" $directory/*.flac
 		;;
 
 		# Run the main script; renames files in working directory
 		# and sorts the files into the music directory
 		run)
-			cd /mnt/e
+			cd $music
 			while read list; do
 				meta "$list"
 
