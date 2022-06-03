@@ -43,43 +43,54 @@ function capitals {
 # Creates variables with metadata for ARTIST, ALBUM, YEAR, TITLE, and TRACKNUMBER
 function meta {
 	input="$directory/$1"
-	metaflac --export-tags-to=/mnt/d/desktop/tags.txt "$input"
+	metaflac --export-tags-to=/mnt/d/desktop/tmp/tags.txt "$input"
 
-	artist=$(grep ^ARTIST= /mnt/d/desktop/tags.txt | cut -f2-20 -d=)
+	artist=$(grep ^ARTIST= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
 
-		# Artists with "The" in the name are reformatted to "Bandname, The"
-		if [[ "$artist" =~ ^"The " ]]; then
-			artist=$(echo $artist | sed 's/The\ //' | sed 's/$/,\ The/')
-		fi
-
-	track=$(grep ^TRACKNUMBER= /mnt/d/desktop/tags.txt | cut -f2-20 -d=)
+	track=$(grep ^TRACKNUMBER= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
 
 		if [[ $track =~ ^0[123456789]* ]]; then
-			metaflac --remove-tag=TRACKNUMBER "$input"
-			metaflac --set-tag="TRACKNUMBER=${track:1}" "$input" 
+			track=${track:1} 
 		fi
 
-		# Track numbers 1-9 are formatted as 01-09 in file names
-		if [[ $track =~ ^[1-9]$ ]]; then
-			track=0$track 
-		fi
-
-	# Song titles are formatted using "capitals" function (see above)
-	title=$(grep ^TITLE= /mnt/d/desktop/tags.txt | cut -f2-20 -d=)
+	title=$(grep ^TITLE= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
 		title=$(capitals $title)
-		metaflac --remove-tag=TITLE "$input"
-		metaflac --set-tag="TITLE=$title" "$input"
 
-	album=$(grep ^ALBUM= /mnt/d/desktop/tags.txt | cut -f2-20 -d=)
-	year=$(grep ^DATE= /mnt/d/desktop/tags.txt | cut -f2-20 -d=)
+	album=$(grep ^ALBUM= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
+	year=$(grep ^DATE= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
+	genre=$(grep ^GENRE= /mnt/d/desktop/tmp/tags.txt | cut -f2-20 -d=)
 	format=$(exiftool "$input" | grep "File Type Extension" | cut -f2 -d: | cut -f2 -d\ )
 	
-	# File names are formatted as TRACKNUMBER. TITLE.flac
+	metaflac --remove-all-tags "$input"
+	metaflac --set-tag="ARTIST=$artist" "$input"
+	metaflac --set-tag="ALBUM=$album" "$input"
+	metaflac --set-tag="GENRE=$genre" "$input"
+	metaflac --set-tag="DATE=$year" "$input"
+	metaflac --set-tag="TITLE=$title" "$input"
+	metaflac --set-tag="TRACKNUMBER=$track" "$input"
+
+# Format for file name
+
+	# Artists with "The" in the name are reformatted to "Bandname, The"
+	if [[ "$artist" =~ ^"The " ]]; then
+		artist=$(echo $artist | sed 's/The\ //' | sed 's/$/,\ The/')
+	fi
+
+	# Track numbers 1-9 are formatted as 01-09 in file names
+	if [[ $track =~ ^[1-9]$ ]]; then
+		track=0$track 
+	fi
+
+	# Replace '?' with '-' in file names
+	title=$(echo $title | sed 's/\?/\-/')
+
+	# File names are formatted as 'nn. title.flac'
 	filename=$(echo $track\. $title\.$format)
+
 }
 
 # Create list.txt with files from working directory
-ls -1 $directory > /mnt/d/desktop/list.txt
+ls -1 $directory > /mnt/d/desktop/tmp/list.txt
 
 # Options
 for argument; do
@@ -94,28 +105,38 @@ for argument; do
 			while read list; do
 				meta "$list"
 				echo $filename
-			done < /mnt/d/desktop/list.txt
+			done < /mnt/d/desktop/tmp/list.txt
 			echo $artist - $album - $year
 		;;
 
+		meta)
+			while read list; do
+				meta "$list"
+				echo $filename
+				metaflac --export-tags-to=/mnt/d/desktop/tmp/tags.txt "$directory/$list"
+				cat /mnt/d/desktop/tmp/tags.txt
+				echo
+			done < /mnt/d/desktop/tmp/list.txt
+		;;
+
 		# Change ALBUM for entire working directory to argument
-		# ex: sort.sh -album "Sgt. Pepper's Lonely Hearts Club Band"
+		# ex: sort.sh -album "Pet Sounds"
 		\-album)
 			val=$2
 			while read list; do
-				metaflac --remove-tag=ALBUM "$list"
-				metaflac --set-tag="ALBUM=$val" "$list"
-			done < /mnt/d/desktop/list.txt
+				metaflac --remove-tag=ALBUM "$directory/$list"
+				metaflac --set-tag="ALBUM=$val" "$directory/$list"
+			done < /mnt/d/desktop/tmp/list.txt
 		;;
 
 		# Change ARTIST for entire working directory to argument
-		# ex: sort.sh -artist "The Beatles"
+		# ex: sort.sh -artist "Thelonious Monk"
 		\-artist)
 			val=$2
 			while read list; do
-				metaflac --remove-tag=ARTIST "$list"
-				metaflac --set-tag="ARTIST=$val" "$list"
-			done < /mnt/d/desktop/list.txt
+				metaflac --remove-tag=ARTIST "$directory/$list"
+				metaflac --set-tag="ARTIST=$val" "$directory/$list"
+			done < /mnt/d/desktop/tmp/list.txt
 		;;
 
 		# Run the main script; renames files in working directory
@@ -134,10 +155,10 @@ for argument; do
 			fi
 
 			mv "$input" "$music/$artist/$album/$track. $title.$format"
-			done < /mnt/d/desktop/list.txt
+			done < /mnt/d/desktop/tmp/list.txt
 		;;
 	esac
 done
 
 # Remove intermediate files
-rm /mnt/d/desktop/list.txt /mnt/d/desktop/tags.txt
+rm /mnt/d/desktop/tmp/*txt
